@@ -83,7 +83,7 @@ function App() {
               </div>
             ))
           ) : (
-            <div style={{ textAlign: 'center', marginTop: '40px', color: 'var(--text-secondary)' }}>
+            <div style={{ textAlign: 'center', marginTop: '30px', color: 'var(--text-secondary)' }}>
               Say hi!
             </div>
           )}
