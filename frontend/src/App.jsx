@@ -1,5 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import io from 'socket.io-client'
 import './App.css'
+
+// Connect to backend
+const socket = io.connect("http://localhost:3001");
 
 const MOCK_USERS = [
   { id: 1, name: 'Alice Freeman', avatar: 'AF', lastMsg: 'Hey, are we still on for tomorrow?' },
@@ -8,25 +12,42 @@ const MOCK_USERS = [
   { id: 4, name: 'Diana Prince', avatar: 'DP', lastMsg: 'Meeting at 3 PM' },
 ]
 
-const MOCK_MESSAGES = {
-  1: [
-    { id: 1, text: 'Hi Alice!', sender: 'me' },
-    { id: 2, text: 'Hey! How are you doing?', sender: 'them' },
-    { id: 3, text: 'I am good, just working on the new project.', sender: 'me' },
-    { id: 4, text: 'That sounds exciting. Tell me more!', sender: 'them' },
-  ],
-  2: [
-    { id: 1, text: 'Did you get the files?', sender: 'them' },
-    { id: 2, text: 'Yes, reviewing them now.', sender: 'me' },
-  ],
-  3: [],
-  4: [],
-}
-
 function App() {
   const [activeUser, setActiveUser] = useState(MOCK_USERS[0])
-  const [messages, setMessages] = useState(MOCK_MESSAGES)
+  const [messages, setMessages] = useState({}) // Store as { userId: [messages] }
   const [inputValue, setInputValue] = useState('')
+
+  useEffect(() => {
+    // Listen for incoming messages
+    socket.on("receive_message", (data) => {
+      // data: { id, text, sender, userId (active chat) }
+      // For simplicity in this demo, we'll append to the current active chat or the specific user chat
+      // If we assume the backend broadcasts everything, we need to decide where to put it.
+      // Let's assume 'data' contains the intended recipient or context.
+      // Simplify: Just append to the user matching the sender for now, or active user.
+
+      // Since backend broadcasts to everyone:
+      // If sender is 'me', we already added it.
+      // If sender is 'them', we add it.
+      if (data.sender !== 'me') {
+        setMessages(prev => {
+          // Hack for demo: Put received messages into "activeUser" chat or a specific ID
+          // Ideally data should have { fromUserId: ... }
+          // Let's default to the Active User for this simple UI:
+          const targetId = activeUser.id;
+          // OR better: use data.userId if provided.
+
+          return {
+            ...prev,
+            [targetId]: [...(prev[targetId] || []), data]
+          }
+        })
+      }
+    });
+
+    // Cleanup
+    return () => socket.off("receive_message");
+  }, [activeUser]) // Re-run if activeUser changes to ensure we map correctly? actually no, ref is better.
 
   const handleSendMessage = (e) => {
     e.preventDefault()
@@ -35,15 +56,21 @@ function App() {
     const newMessage = {
       id: Date.now(),
       text: inputValue,
-      sender: 'me'
+      sender: 'me',
+      userId: activeUser.id
     }
 
+    // Optimistic UI update
     setMessages(prev => ({
       ...prev,
       [activeUser.id]: [...(prev[activeUser.id] || []), newMessage]
     }))
+
+    // Send to backend
+    socket.emit("send_message", newMessage);
+
     setInputValue('')
-  }
+  } // ... rest of render ...
 
   return (
     <div className="app-container">
