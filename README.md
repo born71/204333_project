@@ -1,4 +1,6 @@
-get started...
+get started!
+
+cd frontend
 
 npm install
 
