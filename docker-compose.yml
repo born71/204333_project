@@ -13,7 +13,7 @@ services:
       - "8090:8090"
     volumes:
       - ./pocketbase_data:/pb_data
-    command: ["./pocketbase", "serve", "--http=0.0.0.0:8090"]
+    command: ["serve", "--http=0.0.0.0:8090"]
   frontend:
     build: ./frontend
     container_name: frontend
