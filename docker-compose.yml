@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./backend
+    container_name: backend-server
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+  pocketbase:
+    image: ghcr.io/muchobien/pocketbase:latest
+    container_name: pocketbase-server
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./pocketbase_data:/pb_data
+    command: ["serve", "--http=0.0.0.0:8090"]
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules

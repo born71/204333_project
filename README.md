@@ -1,7 +1,7 @@
-get started!
+Docker Setup Command : **docker compose up -d --build**
 
-cd frontend
+Pocketbase Port :8090
 
-npm install
+Frontend Port :5173
 
-npm run dev
+Backend Port :8000
