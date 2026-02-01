@@ -224,7 +224,7 @@ function App() {
           <input
             type="text"
             className="chat-input"
-            placeholder="Type a message..."
+            placeholder="Say something..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
           />
