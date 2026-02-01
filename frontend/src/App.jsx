@@ -1,92 +1,158 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './App.css'
-
-const MOCK_USERS = [
-  { id: 1, name: 'Alice Freeman', avatar: 'AF', lastMsg: 'Hey, are we still on for tomorrow?' },
-  { id: 2, name: 'Bob Smith', avatar: 'BS', lastMsg: 'Files sent. Check your email.' },
-  { id: 3, name: 'Charlie Davis', avatar: 'CD', lastMsg: 'Thanks!' },
-  { id: 4, name: 'Diana Prince', avatar: 'DP', lastMsg: 'Meeting at 3 PM' },
-]
-
-const MOCK_MESSAGES = {
-  1: [
-    { id: 1, text: 'Hi Alice!', sender: 'me' },
-    { id: 2, text: 'Hey! How are you doing?', sender: 'them' },
-    { id: 3, text: 'I am good, just working on the new project.', sender: 'me' },
-    { id: 4, text: 'That sounds exciting. Tell me more!', sender: 'them' },
-  ],
-  2: [
-    { id: 1, text: 'Did you get the files?', sender: 'them' },
-    { id: 2, text: 'Yes, reviewing them now.', sender: 'me' },
-  ],
-  3: [],
-  4: [],
-}
+import pb from './lib/pocketbase'
 
 function App() {
-  const [activeUser, setActiveUser] = useState(MOCK_USERS[0])
-  const [messages, setMessages] = useState(MOCK_MESSAGES)
+  const [currentUser, setCurrentUser] = useState(null) // เก็บ User Object จาก PocketBase
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // Login Form States
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginError, setLoginError] = useState('')
+
+  const [targetId, setTargetId] = useState('')
+  const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
+  const [connectionStatus, setConnectionStatus] = useState('Disconnected')
+
+  const ws = useRef(null)
+
+  // connect to WS
+  useEffect(() => {
+    if (isLoggedIn && currentUser?.name) {
+      ws.current = new WebSocket(`ws://localhost:8000/ws/${currentUser.name}`)
+
+      ws.current.onopen = () => {
+        setConnectionStatus('Connected')
+      }
+
+      ws.current.onmessage = (event) => {
+        const msg = event.data
+        setMessages(prev => [...prev, { id: Date.now(), text: msg, sender: 'them' }])
+      }
+
+      ws.current.onclose = () => setConnectionStatus('Disconnected')
+
+      return () => {
+        if (ws.current) ws.current.close()
+      }
+    }
+  }, [isLoggedIn, currentUser])
+
+  const handleLogin = async (e) => {
+    e.preventDefault()
+    setLoginError('')
+
+    try {
+      const authData = await pb.collection('users').authWithPassword(email, password)
+
+      alert('Login Success!')
+      setCurrentUser(authData.record)
+      setIsLoggedIn(true)
+
+    } catch (err) {
+      console.error('Login failed:', err)
+      setLoginError('Invalid email or password')
+    }
+  }
+
+  const handleLogout = () => {
+    pb.authStore.clear()
+    setIsLoggedIn(false)
+    setCurrentUser(null)
+    setMessages([])
+  }
 
   const handleSendMessage = (e) => {
     e.preventDefault()
-    if (!inputValue.trim()) return
+    if (!inputValue.trim() || !targetId.trim()) return
 
-    const newMessage = {
-      id: Date.now(),
-      text: inputValue,
-      sender: 'me'
+    const payload = {
+      target_id: targetId,
+      message: inputValue
     }
 
-    setMessages(prev => ({
-      ...prev,
-      [activeUser.id]: [...(prev[activeUser.id] || []), newMessage]
-    }))
-    setInputValue('')
+    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify(payload))
+      setInputValue('')
+    } else {
+      alert('WebSocket is not connected')
+    }
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <div className="login-container" style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+        <h2>Login to Chat</h2>
+        {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
+
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            style={{ padding: '10px', fontSize: '16px' }}
+            required
+          />
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            style={{ padding: '10px', fontSize: '16px' }}
+            required
+          />
+          <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>Login</button>
+        </form>
+      </div>
+    )
   }
 
   return (
     <div className="app-container">
-      {/* Sidebar */}
+      {/* sidebar */}
       <div className="sidebar">
-        <div className="sidebar-header">
-          <h2>Messages</h2>
+        <div className="sidebar-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <h3 style={{ margin: 0 }}>{currentUser.username || currentUser.email}</h3>
+            <span style={{ fontSize: '10px', color: '#aaa' }}>ID: {currentUser.id}</span>
+            <span style={{ fontSize: '12px', color: connectionStatus === 'Connected' ? 'green' : 'red' }}>
+              ● {connectionStatus}
+            </span>
+          </div>
+          <button onClick={handleLogout} style={{ padding: '5px 10px', fontSize: '12px', alignSelf: 'center' }}>Logout</button>
         </div>
-        <ul className="user-list">
-          {MOCK_USERS.map(user => (
-            <li
-              key={user.id}
-              className={`user-item ${activeUser.id === user.id ? 'active' : ''}`}
-              onClick={() => setActiveUser(user)}
-            >
-              <div className="user-avatar">{user.avatar}</div>
-              <div className="user-info">
-                <span className="user-name">{user.name}</span>
-                <span className="user-last-msg">{user.lastMsg}</span>
-              </div>
-            </li>
-          ))}
-        </ul>
+
+        <div style={{ padding: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', color: '#fff' }}>Chat with:</label>
+          <input
+            type="text"
+            placeholder="Target User"
+            value={targetId}
+            onChange={e => setTargetId(e.target.value)}
+            className="chat-input"
+            style={{ width: '80%', marginBottom: '20px' }}
+          />
+          <p style={{ fontSize: '12px', color: '#aaa' }}>
+            Input username to chat.
+          </p>
+        </div>
       </div>
 
-      {/* Chat Area */}
+      {/* chat */}
       <div className="chat-area">
         <div className="chat-header">
-          <h3>{activeUser.name}</h3>
+          <h3>Chatting with {targetId || '...'}</h3>
         </div>
 
         <div className="messages-list">
-          {messages[activeUser.id]?.length > 0 ? (
-            messages[activeUser.id].map(msg => (
-              <div key={msg.id} className={`message ${msg.sender === 'me' ? 'sent' : 'received'}`}>
-                {msg.text}
-              </div>
-            ))
-          ) : (
-            <div style={{ textAlign: 'center', marginTop: '30px', color: 'var(--text-secondary)' }}>
-              Say hi!
+          {messages.map((msg, index) => (
+            <div key={index} className={`message ${msg.text.startsWith('Sent to') ? 'sent' : 'received'}`}>
+              {msg.text}
             </div>
-          )}
+          ))}
         </div>
 
         <form className="chat-input-area" onSubmit={handleSendMessage}>
@@ -98,7 +164,7 @@ function App() {
             onChange={(e) => setInputValue(e.target.value)}
           />
           <button type="submit" className="send-button">
-            <i class="fa fa-paper-plane" aria-hidden="true"></i>
+            <i className="fa fa-paper-plane" aria-hidden="true"></i>
           </button>
         </form>
       </div>
