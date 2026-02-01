@@ -17,6 +17,15 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState('Disconnected')
 
   const ws = useRef(null)
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   // connect to WS
   useEffect(() => {
@@ -208,6 +217,7 @@ function App() {
               {msg.message}
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
         <form className="chat-input-area" onSubmit={handleSendMessage}>
