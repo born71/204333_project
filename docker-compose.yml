@@ -13,7 +13,9 @@ services:
       - "8090:8090"
     volumes:
       - ./pocketbase_data:/pb_data
-    command: ["serve", "--http=0.0.0.0:8090"]
+    environment:
+      PB_ADMIN_EMAIL: ${PB_ADMIN_EMAIL}
+      PB_ADMIN_PASSWORD: ${PB_ADMIN_PASSWORD}
   frontend:
     build: ./frontend
     container_name: frontend
