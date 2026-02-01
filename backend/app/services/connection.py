@@ -16,3 +16,8 @@ class ConnectionManager:
         if user_id in self.active_connections:
             websocket = self.active_connections[user_id]
             await websocket.send_text(message)
+
+    async def send_personal_json(self, message: dict, user_id: str):
+        if user_id in self.active_connections:
+            websocket = self.active_connections[user_id]
+            await websocket.send_json(message)

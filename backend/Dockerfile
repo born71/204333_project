@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# might need to update uv in this dockerfile
+FROM python:3.13.11-slim
 WORKDIR /app
 COPY pyproject.toml ./
 RUN pip install --no-cache-dir "fastapi[standard]>=0.126.0" "uvicorn[standard]>=0.23.2"

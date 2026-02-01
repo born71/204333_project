@@ -14,8 +14,13 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
             message = data.get("message")
             
             if target_id and message:
-                await manager.send_personal_message(f"Message from {client_id}: {message}", target_id)
-                await manager.send_personal_message(f"Sent to {target_id}: {message}", client_id)
+                response = {
+                    "sender": client_id,
+                    "message": message,
+                    "type": "chat"
+                }
+                print(response)
+                await manager.send_personal_json(response, target_id)
             else:
                 await manager.send_personal_message("Invalid data format", client_id)
                 
