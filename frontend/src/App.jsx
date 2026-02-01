@@ -11,7 +11,7 @@ function App() {
   const [password, setPassword] = useState('')
   const [loginError, setLoginError] = useState('')
 
-  const [targetId, setTargetId] = useState('')
+  const [target, setTarget] = useState('')
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [connectionStatus, setConnectionStatus] = useState('Disconnected')
@@ -20,7 +20,7 @@ function App() {
 
   // connect to WS
   useEffect(() => {
-    if (isLoggedIn && currentUser?.name) {
+    if (isLoggedIn && currentUser?.id) {
       ws.current = new WebSocket(`ws://localhost:8000/ws/${currentUser.name}`)
 
       ws.current.onopen = () => {
@@ -28,8 +28,15 @@ function App() {
       }
 
       ws.current.onmessage = (event) => {
-        const msg = event.data
-        setMessages(prev => [...prev, { id: Date.now(), text: msg, sender: 'them' }])
+        try {
+          const data = JSON.parse(event.data)
+          console.log(data)
+          if (data.type === 'chat' && data.message) {
+            setMessages(prev => [...prev, { id: Date.now(), message: data.message, sender: 'them' }])
+          }
+        } catch (e) {
+          // ignore
+        }
       }
 
       ws.current.onclose = () => setConnectionStatus('Disconnected')
@@ -39,6 +46,38 @@ function App() {
       }
     }
   }, [isLoggedIn, currentUser])
+
+  // fetch history when target changes
+  useEffect(() => {
+    async function loadHistory() {
+      if (!target || !currentUser) return;
+
+      try {
+        const targetUserRecord = await pb.collection('users').getFirstListItem(`name="${target}"`)
+
+        const history = await pb.collection('messages').getList(1, 50, {
+          filter: `(sender="${currentUser.id}" && receiver="${targetUserRecord.id}") || (sender="${targetUserRecord.id}" && receiver="${currentUser.id}")`,
+          sort: 'created',
+          expand: 'sender'
+        })
+
+        const formatted = history.items.map(m => ({
+          id: m.id,
+          message: m.message,
+          sender: m.sender === currentUser.id ? 'me' : 'them'
+        }))
+
+        setMessages(formatted)
+
+      } catch (err) {
+        console.log("No history found or user not found:", err)
+        setMessages([])
+      }
+    }
+
+    const timer = setTimeout(loadHistory, 500)
+    return () => clearTimeout(timer)
+  }, [target, currentUser])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -64,20 +103,36 @@ function App() {
     setMessages([])
   }
 
-  const handleSendMessage = (e) => {
+  const handleSendMessage = async (e) => {
     e.preventDefault()
-    if (!inputValue.trim() || !targetId.trim()) return
+    if (!inputValue.trim() || !target.trim()) return
 
-    const payload = {
-      target_id: targetId,
-      message: inputValue
-    }
+    try {
+      const targetUserRecord = await pb.collection('users').getFirstListItem(`name="${target}"`)
 
-    if (ws.current && ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify(payload))
-      setInputValue('')
-    } else {
-      alert('WebSocket is not connected')
+      await pb.collection('messages').create({
+        message: inputValue,
+        sender: currentUser.id,
+        receiver: targetUserRecord.id
+      })
+
+      const payload = {
+        target_id: target,
+        message: inputValue
+      }
+
+      if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+        ws.current.send(JSON.stringify(payload))
+
+        setMessages(prev => [...prev, { id: Date.now(), message: inputValue, sender: 'me' }])
+        setInputValue('')
+      } else {
+        alert('WebSocket is not connected')
+      }
+
+    } catch (err) {
+      console.error("Failed to send:", err)
+      alert("Error sending message (Target user not found?)")
     }
   }
 
@@ -116,7 +171,7 @@ function App() {
       <div className="sidebar">
         <div className="sidebar-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ margin: 0 }}>{currentUser.username || currentUser.email}</h3>
+            <h3 style={{ margin: 0 }}>{currentUser.name || currentUser.email}</h3>
             <span style={{ fontSize: '10px', color: '#aaa' }}>ID: {currentUser.id}</span>
             <span style={{ fontSize: '12px', color: connectionStatus === 'Connected' ? 'green' : 'red' }}>
               ● {connectionStatus}
@@ -130,8 +185,8 @@ function App() {
           <input
             type="text"
             placeholder="Target User"
-            value={targetId}
-            onChange={e => setTargetId(e.target.value)}
+            value={target}
+            onChange={e => setTarget(e.target.value)}
             className="chat-input"
             style={{ width: '80%', marginBottom: '20px' }}
           />
@@ -144,13 +199,13 @@ function App() {
       {/* chat */}
       <div className="chat-area">
         <div className="chat-header">
-          <h3>Chatting with {targetId || '...'}</h3>
+          <h3>Chatting with {target || '...'}</h3>
         </div>
 
         <div className="messages-list">
           {messages.map((msg, index) => (
-            <div key={index} className={`message ${msg.text.startsWith('Sent to') ? 'sent' : 'received'}`}>
-              {msg.text}
+            <div key={index} className={`message ${msg.sender === 'me' ? 'sent' : 'received'}`}>
+              {msg.message}
             </div>
           ))}
         </div>
