@@ -3,8 +3,8 @@ import './App.css'
 import pb from './lib/pocketbase'
 
 function App() {
-  const [currentUser, setCurrentUser] = useState(null) // เก็บ User Object จาก PocketBase
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [currentUser, setCurrentUser] = useState(pb.authStore.model) // เก็บ User Object จาก PocketBase
+  const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid)
 
   // Login Form States
   const [email, setEmail] = useState('')
@@ -140,7 +140,7 @@ function App() {
       }
 
     } catch (err) {
-      console.error("Failed to send:", err)
+      console.error("Failed to send:", err.data)
       alert("Error sending message (Target user not found?)")
     }
   }
