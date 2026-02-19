@@ -15,6 +15,7 @@ function App() {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [connectionStatus, setConnectionStatus] = useState('Disconnected')
+  const [chatHistoryUsers, setChatHistoryUsers] = useState([])
 
   const ws = useRef(null)
   const messagesEndRef = useRef(null)
@@ -26,6 +27,43 @@ function App() {
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // fetch chat history users
+  useEffect(() => {
+    if (isLoggedIn && currentUser) {
+      pb.collection('messages').getList(1, 100, {
+        filter: `sender="${currentUser.id}" || receiver="${currentUser.id}"`,
+        sort: '-created',
+        expand: 'sender,receiver'
+      }).then(res => {
+        const uniqueUsers = new Map();
+
+        res.items.forEach(msg => {
+          let otherUser;
+          if (msg.expand?.sender?.id === currentUser.id) {
+            otherUser = msg.expand?.receiver;
+          } else {
+            otherUser = msg.expand?.sender;
+          }
+
+          if (otherUser && !uniqueUsers.has(otherUser.id)) {
+            uniqueUsers.set(otherUser.id, {
+              ...otherUser,
+              lastMessage: msg.message // simplified last message logic
+            });
+          }
+        });
+
+        setChatHistoryUsers(Array.from(uniqueUsers.values()));
+      }).catch(err => {
+        console.error("Error fetching chat history:", err);
+      });
+    }
+  }, [isLoggedIn, currentUser, messages]); // refresh when new messages arrive
+
+  const handleUserClick = (user) => {
+    setTarget(user.name);
+  }
 
   // connect to WS
   useEffect(() => {
@@ -58,6 +96,20 @@ function App() {
 
   // fetch history when target changes
   useEffect(() => {
+    // Log all users for debugging
+    if (currentUser) {
+      pb.collection('users').getFullList({
+        sort: 'created',
+      }).then(users => {
+        // Filter out current user
+        const otherUsers = users.filter(u => u.id !== currentUser.id);
+        console.log('Available Users (others):', otherUsers.map(u => u.name || u.email));
+        console.log('Full User Records (others):', otherUsers);
+      }).catch(err => {
+        console.error('Failed to fetch users:', err);
+      });
+    }
+
     async function loadHistory() {
       if (!target || !currentUser) return;
 
@@ -110,6 +162,8 @@ function App() {
     setIsLoggedIn(false)
     setCurrentUser(null)
     setMessages([])
+    setChatHistoryUsers([])
+    setTarget('')
   }
 
   const handleSendMessage = async (e) => {
@@ -189,20 +243,41 @@ function App() {
           <button onClick={handleLogout} style={{ padding: '5px 10px', fontSize: '12px', alignSelf: 'center' }}>Logout</button>
         </div>
 
-        <div style={{ padding: '20px' }}>
-          <label style={{ display: 'block', marginBottom: '10px', color: '#fff' }}>Chat with:</label>
+        <div style={{ padding: '20px', borderBottom: '1px solid #e2e8f0' }}>
           <input
             type="text"
-            placeholder="Target User"
+            placeholder="Search or start new chat..."
             value={target}
             onChange={e => setTarget(e.target.value)}
             className="chat-input"
-            style={{ width: '80%', marginBottom: '20px' }}
+            style={{ width: '100%', boxSizing: 'border-box' }}
           />
-          <p style={{ fontSize: '12px', color: '#aaa' }}>
-            Input username to chat.
-          </p>
         </div>
+
+        <ul className="user-list">
+          {chatHistoryUsers.map(user => (
+            <li
+              key={user.id}
+              className={`user-item ${target === user.name ? 'active' : ''}`}
+              onClick={() => handleUserClick(user)}
+            >
+              <div className="user-avatar">
+                {user.name ? user.name.charAt(0).toUpperCase() : '?'}
+              </div>
+              <div className="user-info">
+                <span className="user-name">{user.name || user.email}</span>
+                {user.lastMessage && (
+                  <span className="user-last-msg">{user.lastMessage}</span>
+                )}
+              </div>
+            </li>
+          ))}
+          {chatHistoryUsers.length === 0 && (
+            <li style={{ padding: '20px', color: '#999', textAlign: 'center', fontSize: '0.9rem' }}>
+              No recent chats. Start a new one above!
+            </li>
+          )}
+        </ul>
       </div>
 
       {/* chat */}
