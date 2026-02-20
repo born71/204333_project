@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
 import './App.css'
 import pb from './lib/pocketbase'
+import Profile from './components/Profile'
 
 function App() {
   const [currentUser, setCurrentUser] = useState(pb.authStore.model) // เก็บ User Object จาก PocketBase
   const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid)
+  const [currentView, setCurrentView] = useState('chat') // 'chat' or 'profile'
 
   // Login Form States
   const [email, setEmail] = useState('')
@@ -161,6 +163,7 @@ function App() {
     pb.authStore.clear()
     setIsLoggedIn(false)
     setCurrentUser(null)
+    setCurrentView('chat')
     setMessages([])
     setChatHistoryUsers([])
     setTarget('')
@@ -234,7 +237,28 @@ function App() {
       <div className="sidebar">
         <div className="sidebar-header" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: '10px' }}>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <h3 style={{ margin: 0 }}>{currentUser.name || currentUser.email}</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 style={{ margin: 0 }}>{currentUser.name || currentUser.email}</h3>
+              <button
+                onClick={() => setCurrentView('profile')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  borderRadius: '4px'
+                }}
+                title="Profile Settings"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </button>
+            </div>
             <span style={{ fontSize: '10px', color: '#aaa' }}>ID: {currentUser.id}</span>
             <span style={{ fontSize: '12px', color: connectionStatus === 'Connected' ? 'green' : 'red' }}>
               ● {connectionStatus}
@@ -280,34 +304,42 @@ function App() {
         </ul>
       </div>
 
-      {/* chat */}
-      <div className="chat-area">
-        <div className="chat-header">
-          <h3>Chatting with {target || '...'}</h3>
-        </div>
+      {/* chat or profile */}
+      {currentView === 'profile' ? (
+        <Profile
+          currentUser={currentUser}
+          onBack={() => setCurrentView('chat')}
+          onUpdateUser={(updatedUser) => setCurrentUser(updatedUser)}
+        />
+      ) : (
+        <div className="chat-area">
+          <div className="chat-header">
+            <h3>Chatting with {target || '...'}</h3>
+          </div>
 
-        <div className="messages-list">
-          {messages.map((msg, index) => (
-            <div key={index} className={`message ${msg.sender === 'me' ? 'sent' : 'received'}`}>
-              {msg.message}
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </div>
+          <div className="messages-list">
+            {messages.map((msg, index) => (
+              <div key={index} className={`message ${msg.sender === 'me' ? 'sent' : 'received'}`}>
+                {msg.message}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
 
-        <form className="chat-input-area" onSubmit={handleSendMessage}>
-          <input
-            type="text"
-            className="chat-input"
-            placeholder="Say something..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-          />
-          <button type="submit" className="send-button">
-            <i className="fa fa-paper-plane" aria-hidden="true"></i>
-          </button>
-        </form>
-      </div>
+          <form className="chat-input-area" onSubmit={handleSendMessage}>
+            <input
+              type="text"
+              className="chat-input"
+              placeholder="Say something..."
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+            />
+            <button type="submit" className="send-button">
+              <i className="fa fa-paper-plane" aria-hidden="true"></i>
+            </button>
+          </form>
+        </div>
+      )}
     </div>
   )
 }
