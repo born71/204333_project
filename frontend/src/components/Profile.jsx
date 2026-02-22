@@ -4,6 +4,7 @@ import './Profile.css';
 
 const Profile = ({ currentUser, onBack, onUpdateUser }) => {
     const [name, setName] = useState(currentUser?.name || '');
+    const [description, setDescription] = useState(currentUser?.description || '');
     const [avatarFile, setAvatarFile] = useState(null);
     const [avatarPreview, setAvatarPreview] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -37,6 +38,7 @@ const Profile = ({ currentUser, onBack, onUpdateUser }) => {
         try {
             const formData = new FormData();
             formData.append('name', name);
+            formData.append('description', description);
             if (avatarFile) {
                 formData.append('avatar', avatarFile);
             }
@@ -115,11 +117,12 @@ const Profile = ({ currentUser, onBack, onUpdateUser }) => {
                                         placeholder="Enter your name"
                                         autoFocus
                                     />
+
                                     <div className="action-buttons">
                                         <button className="save-button" onClick={handleSave} disabled={saving}>
                                             {saving ? 'Saving...' : 'Save Changes'}
                                         </button>
-                                        <button className="cancel-button" onClick={() => { setIsEditing(false); setName(currentUser.name || ''); setAvatarFile(null); setAvatarPreview(null); setError(''); }} disabled={saving}>
+                                        <button className="cancel-button" onClick={() => { setIsEditing(false); setName(currentUser.name || ''); setDescription(currentUser.description || ''); setAvatarFile(null); setAvatarPreview(null); setError(''); }} disabled={saving}>
                                             Cancel
                                         </button>
                                     </div>
@@ -128,6 +131,39 @@ const Profile = ({ currentUser, onBack, onUpdateUser }) => {
                                 <div className="display-name-group">
                                     <p className="read-only" style={{ padding: '8px 0', border: 'none', background: 'transparent' }}>
                                         {currentUser.name || <span className="no-name">Not set</span>}
+                                    </p>
+                                    <button className="edit-button" onClick={() => setIsEditing(true)}>Edit</button>
+                                </div>
+                            )}
+                            {error && <span className="error-text">{error}</span>}
+                        </div>
+
+                        <div className="info-group">
+                            <label>Description</label>
+                            {isEditing ? (
+                                <div className="edit-name-group">
+                                    <textarea
+                                        value={description}
+                                        onChange={(e) => setDescription(e.target.value)}
+                                        className="name-input description-input"
+                                        placeholder="About yourself!"
+                                        autoFocus
+                                        rows="4"
+                                    />
+
+                                    <div className="action-buttons">
+                                        <button className="save-button" onClick={handleSave} disabled={saving}>
+                                            {saving ? 'Saving...' : 'Save Changes'}
+                                        </button>
+                                        <button className="cancel-button" onClick={() => { setIsEditing(false); setName(currentUser.name || ''); setDescription(currentUser.description || ''); setAvatarFile(null); setAvatarPreview(null); setError(''); }} disabled={saving}>
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="display-name-group">
+                                    <p className="read-only" style={{ padding: '8px 0', border: 'none', background: 'transparent' }}>
+                                        {currentUser.description || <span className="no-name">None</span>}
                                     </p>
                                     <button className="edit-button" onClick={() => setIsEditing(true)}>Edit</button>
                                 </div>
