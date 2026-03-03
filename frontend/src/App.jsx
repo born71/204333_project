@@ -8,10 +8,16 @@ function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(pb.authStore.isValid)
   const [currentView, setCurrentView] = useState('chat') // 'chat' or 'profile'
 
-  // Login Form States
+  // Login/Register States
+  const [authMode, setAuthMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [loginError, setLoginError] = useState('')
+  const [authError, setAuthError] = useState('')
+
+  const [registerName, setRegisterName] = useState('')
+  const [registerEmail, setRegisterEmail] = useState('')
+  const [registerPassword, setRegisterPassword] = useState('')
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('')
 
   const [target, setTarget] = useState('')
   const [messages, setMessages] = useState([])
@@ -144,7 +150,7 @@ function App() {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    setLoginError('')
+    setAuthError('')
 
     try {
       const authData = await pb.collection('users').authWithPassword(email, password)
@@ -155,7 +161,38 @@ function App() {
 
     } catch (err) {
       console.error('Login failed:', err)
-      setLoginError('Invalid email or password')
+      setAuthError('Invalid email or password')
+    }
+  }
+
+  const handleRegister = async (e) => {
+    e.preventDefault()
+    setAuthError('')
+
+    if (registerPassword !== registerPasswordConfirm) {
+      setAuthError("Passwords do not match")
+      return
+    }
+
+    try {
+      const data = {
+        "email": registerEmail,
+        "emailVisibility": true,
+        "password": registerPassword,
+        "passwordConfirm": registerPasswordConfirm,
+        "name": registerName
+      };
+
+      await pb.collection('users').create(data);
+
+      const authData = await pb.collection('users').authWithPassword(registerEmail, registerPassword)
+      alert('Registration & Login Success!')
+      setCurrentUser(authData.record)
+      setIsLoggedIn(true)
+
+    } catch (err) {
+      console.error('Registration failed:', err)
+      setAuthError(err.message || 'Registration failed')
     }
   }
 
@@ -203,32 +240,83 @@ function App() {
   }
 
   if (!isLoggedIn) {
-    return (
-      <div className="login-container" style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
-        <h2>Login to Chat</h2>
-        {loginError && <p style={{ color: 'red' }}>{loginError}</p>}
+    if (authMode === 'login') {
+      return (
+        <div className="login-container" style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+          <h2>Login to Chat</h2>
+          {authError && <p style={{ color: 'red' }}>{authError}</p>}
 
-        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={email}
-            onChange={e => setEmail(e.target.value)}
-            style={{ padding: '10px', fontSize: '16px' }}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            style={{ padding: '10px', fontSize: '16px' }}
-            required
-          />
-          <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>Login</button>
-        </form>
-      </div>
-    )
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              style={{ padding: '10px', fontSize: '16px' }}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              style={{ padding: '10px', fontSize: '16px' }}
+              required
+            />
+            <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>Login</button>
+          </form>
+          <p style={{ marginTop: '20px' }}>
+            Don't have an account? <button type="button" onClick={() => setAuthMode('register')} style={{ background: 'none', border: 'none', color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}>Register</button>
+          </p>
+        </div>
+      )
+    } else {
+      return (
+        <div className="login-container" style={{ padding: '50px', maxWidth: '400px', margin: '0 auto', textAlign: 'center' }}>
+          <h2>Register for Chat</h2>
+          {authError && <p style={{ color: 'red' }}>{authError}</p>}
+
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <input
+              type="text"
+              placeholder="Display Name"
+              value={registerName}
+              onChange={e => setRegisterName(e.target.value)}
+              style={{ padding: '10px', fontSize: '16px' }}
+              required
+            />
+            <input
+              type="email"
+              placeholder="Email"
+              value={registerEmail}
+              onChange={e => setRegisterEmail(e.target.value)}
+              style={{ padding: '10px', fontSize: '16px' }}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={registerPassword}
+              onChange={e => setRegisterPassword(e.target.value)}
+              style={{ padding: '10px', fontSize: '16px' }}
+              required
+            />
+            <input
+              type="password"
+              placeholder="Confirm Password"
+              value={registerPasswordConfirm}
+              onChange={e => setRegisterPasswordConfirm(e.target.value)}
+              style={{ padding: '10px', fontSize: '16px' }}
+              required
+            />
+            <button type="submit" style={{ padding: '10px 20px', cursor: 'pointer' }}>Register</button>
+          </form>
+          <p style={{ marginTop: '20px' }}>
+            Already have an account? <button type="button" onClick={() => setAuthMode('login')} style={{ background: 'none', border: 'none', color: 'blue', cursor: 'pointer', textDecoration: 'underline' }}>Login</button>
+          </p>
+        </div>
+      )
+    }
   }
 
   return (
