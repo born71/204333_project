@@ -76,7 +76,9 @@ function App() {
   // connect to WS
   useEffect(() => {
     if (isLoggedIn && currentUser?.id) {
-      ws.current = new WebSocket(`ws://localhost:8000/ws/${currentUser.name}`)
+      const wsBase = import.meta.env.VITE_WS_URL ||
+        `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}`
+      ws.current = new WebSocket(`${wsBase}/ws/${currentUser.name}`)
 
       ws.current.onopen = () => {
         setConnectionStatus('Connected')
