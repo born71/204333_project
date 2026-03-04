@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pocketbase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pocketbase
+  template:
+    metadata:
+      labels:
+        app: pocketbase
+    spec:
+      containers:
+      - name: pocketbase
+        image: my-pocketbase-with-db:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 8090
+          name: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pocketbase
+spec:
+  selector:
+    app: pocketbase
+  ports:
+    - protocol: TCP
+      port: 8090
+      targetPort: 8090
