@@ -3,7 +3,7 @@ kind: Deployment
 metadata:
   name: backend
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: backend
@@ -16,6 +16,9 @@ spec:
       - name: backend
         image: 204333_project-backend:latest
         imagePullPolicy: Never
+        env:
+        - name: REDIS_URL
+          value: "redis://redis:6379/0"
         ports:
         - containerPort: 8000
 ---
